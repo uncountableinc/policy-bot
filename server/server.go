@@ -248,11 +248,6 @@ func New(c *Config) (*Server, error) {
 	// additional client routes
 	mux.Handle(pat.Get("/favicon.ico"), http.RedirectHandler(basePath+"/static/img/favicon.ico", http.StatusFound))
 	mux.Handle(pat.Get("/static/*"), handler.Static(basePath+"/static/", &c.Files))
-	mux.Handle(pat.Get("/"), hatpear.Try(&handler.Index{
-		Base:         basePolicyHandler,
-		GithubConfig: &c.Github,
-		Templates:    templates,
-	}))
 
 	detailsHandler := handler.Details{
 		Base:      basePolicyHandler,
