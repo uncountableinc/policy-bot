@@ -17,6 +17,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/google/go-github/v82/github"
@@ -186,10 +187,14 @@ func (ec *EvalContext) PostStatus(ctx context.Context, state, message string) {
 
 	publicURL := strings.TrimSuffix(ec.PublicURL, "/")
 	detailsURL := fmt.Sprintf("%s/details/%s/%s/%d", publicURL, owner, repo, ec.PullContext.Number())
+	statusCheckName := os.Getenv("POLICY_BOT_STATUS_CHECK_NAME")
+	if statusCheckName == "" {
+		statusCheckName = "Policy Bot"
+	}
 
 	status := github.RepoStatus{
 		State:       &state,
-		Context:     github.Ptr("Policy Bot"),
+		Context:     github.Ptr(statusCheckName),
 		Description: &message,
 		TargetURL:   &detailsURL,
 	}
