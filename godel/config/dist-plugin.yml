@@ -13,8 +13,6 @@ products:
       os-archs:
       - os: linux
         arch: amd64
-      - os: linux
-        arch: arm64
     dist:
       output-dir: build
       disters:

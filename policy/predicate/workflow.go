@@ -30,6 +30,11 @@ type HasWorkflowResult struct {
 	Workflows   []string           `yaml:"workflows,omitempty"`
 }
 
+type AnyWorkflowHasResult struct {
+	Conclusions AllowedConclusions `yaml:"conclusions,omitempty"`
+	Workflows   []string           `yaml:"workflows,omitempty"`
+}
+
 func NewHasWorkflowResult(workflows []string, conclusions []string) *HasWorkflowResult {
 	return &HasWorkflowResult{
 		Conclusions: conclusions,
@@ -37,7 +42,15 @@ func NewHasWorkflowResult(workflows []string, conclusions []string) *HasWorkflow
 	}
 }
 
+func NewAnyWorkflowHasResult(workflows []string, conclusions []string) *AnyWorkflowHasResult {
+	return &AnyWorkflowHasResult{
+		Conclusions: conclusions,
+		Workflows:   workflows,
+	}
+}
+
 var _ Predicate = HasWorkflowResult{}
+var _ Predicate = AnyWorkflowHasResult{}
 
 func (pred HasWorkflowResult) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
 	workflowRuns, err := prctx.LatestWorkflowRuns()
@@ -90,5 +103,59 @@ func (pred HasWorkflowResult) Evaluate(ctx context.Context, prctx pull.Context) 
 }
 
 func (pred HasWorkflowResult) Trigger() common.Trigger {
+	return common.TriggerStatus
+}
+
+func (pred AnyWorkflowHasResult) Evaluate(ctx context.Context, prctx pull.Context) (*common.PredicateResult, error) {
+	workflowRuns, err := prctx.LatestWorkflowRuns()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to list latest workflow runs")
+	}
+
+	allowedConclusions := pred.Conclusions
+	if len(allowedConclusions) == 0 {
+		allowedConclusions = AllowedConclusions{"success"}
+	}
+
+	predicateResult := common.PredicateResult{
+		ValuePhrase:     "workflow results",
+		ConditionPhrase: fmt.Sprintf("exist and have conclusion %s", allowedConclusions.joinWithOr()),
+	}
+
+	var missingResults []string
+	var matchingWorkflows []string
+	for _, workflow := range pred.Workflows {
+		conclusions, ok := workflowRuns[workflow]
+		if !ok {
+			missingResults = append(missingResults, workflow)
+		}
+		for _, conclusion := range conclusions {
+			if slices.Contains(allowedConclusions, conclusion) {
+				matchingWorkflows = append(matchingWorkflows, workflow)
+			}
+		}
+	}
+
+	if len(missingResults) > 0 {
+		predicateResult.Values = missingResults
+		predicateResult.Description = "One or more workflow runs are missing: " + strings.Join(missingResults, ", ")
+		predicateResult.Satisfied = false
+		return &predicateResult, nil
+	}
+
+	if len(matchingWorkflows) == 0 {
+		predicateResult.Values = matchingWorkflows
+		predicateResult.Description = fmt.Sprintf("No workflow runs have concluded with %s: %s", pred.Conclusions.joinWithOr(), strings.Join(pred.Workflows, ","))
+		predicateResult.Satisfied = false
+		return &predicateResult, nil
+	}
+
+	predicateResult.Values = pred.Workflows
+	predicateResult.Satisfied = true
+
+	return &predicateResult, nil
+}
+
+func (pred AnyWorkflowHasResult) Trigger() common.Trigger {
 	return common.TriggerStatus
 }
