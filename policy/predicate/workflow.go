@@ -119,7 +119,7 @@ func (pred AnyWorkflowHasResult) Evaluate(ctx context.Context, prctx pull.Contex
 
 	predicateResult := common.PredicateResult{
 		ValuePhrase:     "workflow results",
-		ConditionPhrase: fmt.Sprintf("exist and have conclusion %s", allowedConclusions.joinWithOr()),
+		ConditionPhrase: fmt.Sprintf("exist and at least one conclusion %s", allowedConclusions.joinWithOr()),
 	}
 
 	var missingResults []string
